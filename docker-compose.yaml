@@ -1,0 +1,90 @@
+services:
+  mysql-server:
+    image: mysql:8.0
+    container_name: mysql-server
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_bin --log-bin-trust-function-creators=1
+    environment:
+      MYSQL_ROOT_PASSWORD: iqlab@2025
+      MYSQL_DATABASE: zabbix
+      MYSQL_USER: zabbix
+      MYSQL_PASSWORD: iqlab@2025
+    volumes:
+      - mysql-data:/var/lib/mysql
+    restart: unless-stopped
+
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:7.4-alpine-latest
+    container_name: zabbix-server
+    depends_on:
+      - mysql-server
+      - zabbix-snmptraps
+    environment:
+      DB_SERVER_HOST: mysql-server
+      MYSQL_DATABASE: zabbix
+      MYSQL_USER: zabbix
+      MYSQL_PASSWORD: iqlab@2025
+      TZ: Asia/Kolkata
+      ZBX_STARTAGENTS: 5
+      ZBX_ENABLE_SNMP_TRAPS: "true"
+      ZBX_STARTSNMPTRAPPER: "1"
+      ZBX_SNMPTRAPPERFILE: "/var/lib/zabbix/snmptraps/snmptraps.log"
+      ZBX_ENABLE_SNMP_TRAPS: "true" 
+    ports:
+      - "10051:10051"
+    volumes:
+      - zabbix-snmptraps-data:/var/lib/zabbix/snmptraps
+    restart: unless-stopped
+
+  zabbix-web:
+    image: ghcr.io/iqlab2025/my-zabbix:custom
+    container_name: zabbix-web
+    depends_on:
+      - zabbix-server
+      - mysql-server
+    environment:
+      DB_SERVER_HOST: mysql-server
+      MYSQL_DATABASE: zabbix
+      MYSQL_USER: zabbix
+      MYSQL_PASSWORD: iqlab@2025
+      ZBX_SERVER_HOST: zabbix-server
+      PHP_TZ: Asia/Kolkata
+      ZBX_SERVER_NAME: "Identiqa NMS"
+    ports:
+      - "8080:8080"
+    volumes:
+      - /home/vboxuser/zabbix/zabbix-custom-ui/general.login.php:/usr/share/zabbix/include/views/general.login.php:ro
+      - ./zabbix-custom-ui/blue-theme.css:/usr/share/zabbix/assets/styles/blue-theme.css
+      - /home/vboxuser/zabbix/zabbix-custom-ui/favicon.ico:/usr/share/zabbix/favicon.ico
+      - /home/vboxuser/zabbix/zabbix-custom-ui/brand.conf.php:/usr/share/zabbix/local/conf/brand.conf.php:ro
+      - /home/vboxuser/zabbix/zabbix-custom-ui/CBrandHelper.php:/usr/share/zabbix/include/classes/helpers/CBrandHelper.php:ro
+      - /home/vboxuser/zabbix/zabbix-custom-ui/CMenuHelper.php:/usr/share/zabbix/include/classes/helpers/CMenuHelper.php:ro
+    restart: unless-stopped
+
+  zabbix-agent:
+    image: zabbix/zabbix-agent:alpine-7.4-latest
+    container_name: zabbix-agent
+    depends_on:
+      - zabbix-server
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+      HOSTNAME: zabbix-agent
+    ports:
+      - "10050:10050"
+    restart: unless-stopped
+
+  zabbix-snmptraps:
+    image: zabbix/zabbix-snmptraps:latest
+    container_name: zabbix-snmptraps
+    ports:
+      - "162:162/udp"  # SNMP trap port
+    volumes:
+      - zabbix-snmptraps-data:/var/lib/zabbix/snmptraps
+      - /home/vboxuser/zabbix/zabbix-custom-ui/snmptrapd.conf:/etc/snmp/snmptrapd.conf:ro
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  zabbix-server-data:
+  zabbix-web-data:
+  zabbix-snmptraps-data:
+

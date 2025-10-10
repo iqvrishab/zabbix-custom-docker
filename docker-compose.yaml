@@ -28,7 +28,7 @@ services:
       ZBX_ENABLE_SNMP_TRAPS: "true"
       ZBX_STARTSNMPTRAPPER: "1"
       ZBX_SNMPTRAPPERFILE: "/var/lib/zabbix/snmptraps/snmptraps.log"
-      ZBX_ENABLE_SNMP_TRAPS: "true" 
+       
     ports:
       - "10051:10051"
     volumes:
